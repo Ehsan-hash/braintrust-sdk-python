@@ -368,6 +368,7 @@ def test_btx_openai(session, version):
 
 @nox.session()
 def test_openai_ddtrace(session):
+    _skip_if_incompatible(session)
     _install_test_deps(session)
     _install_matrix_dep(session, "openai", LATEST)
     _install_group_locked(session, "test-openai-ddtrace")
@@ -670,6 +671,7 @@ LANGCHAIN_VERSIONS = _get_matrix_versions("langchain-core")
 @nox.session()
 @nox.parametrize("version", LANGCHAIN_VERSIONS, ids=LANGCHAIN_VERSIONS)
 def test_langchain(session, version):
+    _skip_if_incompatible(session)
     _install_test_deps(session)
     _install_matrix_dep(session, "langchain-core", version)
     _install_group_locked(session, "test-langchain")
@@ -716,6 +718,7 @@ OPENROUTER_VERSIONS = _get_matrix_versions("openrouter")
 @nox.parametrize("version", OPENROUTER_VERSIONS, ids=OPENROUTER_VERSIONS)
 def test_openrouter(session, version):
     """Test the native OpenRouter SDK integration."""
+    _skip_if_incompatible(session)
     _install_test_deps(session)
     _install_matrix_dep(session, "openrouter", version)
     _run_tests(session, f"{INTEGRATION_DIR}/openrouter/test_openrouter.py", version=version)
@@ -925,10 +928,27 @@ def pylint(session):
         "pipecat-ai": (3, 11),
         "pydantic-ai-integration": (3, 11),
     }
+    # Latest pins that cannot install on newer Pythons yet (see the matching
+    # caps in nox_session_constraints.py), and the integration whose files
+    # pylint then cannot resolve imports for.
+    maximum_python_exclusive = {
+        "pipecat-ai": ((3, 14), None),
+        "dspy": ((3, 15), "dspy"),
+        "harbor": ((3, 15), None),
+        "instructor": ((3, 15), "instructor"),
+        "litellm": ((3, 15), "litellm"),
+        "livekit-agents": ((3, 15), "livekit_agents"),
+        "openrouter": ((3, 15), "openrouter"),
+        "transformers": ((3, 15), None),
+    }
+    unlintable_integrations = set()
     for package in _VENDOR_TABLE:
         if sys.version_info[:2] < minimum_python.get(package, (3, 10)):
             continue
-        if package == "pipecat-ai" and sys.version_info >= (3, 14):
+        max_python, integration = maximum_python_exclusive.get(package, (None, None))
+        if max_python and sys.version_info[:2] >= max_python:
+            if integration:
+                unlintable_integrations.add(integration)
             continue
         if package == "crewai":
             continue
@@ -951,6 +971,14 @@ def pylint(session):
     # The lint group skips crewai to avoid vulnerable transitive chromadb
     # versions, so skip the matching example too.
     files = [f for f in files if not f.startswith("../examples/crewai/")]
+    for integration in sorted(unlintable_integrations):
+        files = [
+            f
+            for f in files
+            if not f.startswith(f"src/{INTEGRATION_DIR}/{integration}/")
+            and f != f"src/{INTEGRATION_DIR}/auto_test_scripts/test_auto_{integration}.py"
+            and not f.startswith(f"../examples/{integration}/")
+        ]
     session.run("pylint", "--errors-only", *files)
 
 
