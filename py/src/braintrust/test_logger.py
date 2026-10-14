@@ -48,6 +48,7 @@ from braintrust.prompt_cache.lru_cache import LRUCache
 from braintrust.prompt_cache.parameters_cache import ParametersCache
 from braintrust.prompt_cache.prompt_cache import PromptCache
 from braintrust.test_helpers import (
+    DataclassAttachment,
     assert_dict_matches,
     assert_logged_out,
     init_test_exp,
@@ -3424,6 +3425,30 @@ def test_attachment_upload_tracked_on_flush(with_memory_logger, with_simulate_lo
     # Now upload should be tracked
     assert len(with_memory_logger.upload_attempts) == 1
     assert with_memory_logger.upload_attempts[0] is attachment
+
+
+def test_dataclass_attachments_reach_flush(with_memory_logger, with_simulate_login):
+    from dataclasses import dataclass
+
+    @dataclass
+    class Payload:
+        files: list[BaseAttachment]
+
+    attachment = Attachment(data=b"data", filename="file.txt", content_type="text/plain")
+    external = ExternalAttachment(url="s3://bucket/key", filename="file.pdf", content_type="application/pdf")
+    dataclass_attachment = DataclassAttachment("test-key")
+    payload = Payload([attachment, external])
+    test_logger = init_test_logger(__name__)
+    with test_logger.start_span(name="dataclass-attachments") as span:
+        span.log(input=payload, output=dataclass_attachment)
+    test_logger.flush()
+
+    # The memory logger exercises extraction without making upload requests.
+    assert with_memory_logger.upload_attempts == [attachment, external, dataclass_attachment]
+    logged = with_memory_logger.pop()[0]
+    assert logged["input"] == {"files": [attachment.reference, external.reference]}
+    assert logged["output"] == dataclass_attachment.reference
+    assert payload.files == [attachment, external]
 
 
 def test_same_attachment_logged_twice_tracked_twice(with_memory_logger, with_simulate_login):
