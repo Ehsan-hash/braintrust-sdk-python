@@ -1689,7 +1689,6 @@ async def _run_evaluator_internal_impl(
     scorer_names = [_scorer_name(scorer, i) for i, scorer in enumerate(scorers)]
     classifiers = list(evaluator.classifiers or [])
     classifier_names = [_classifier_name(classifier, i) for i, classifier in enumerate(classifiers)]
-    unhandled_scores = scorer_names
 
     if evaluator.parameter_values is not None:
         resolved_evaluator_parameters = evaluator.parameter_values
@@ -1709,6 +1708,7 @@ async def _run_evaluator_internal_impl(
         error = None
         exc_info = None
         scores = {}
+        unhandled_scores = scorer_names
         classifications = {}
         tags = datum.tags
 
@@ -1922,7 +1922,6 @@ async def _run_evaluator_internal_impl(
                 if classifications:
                     root_span.log(classifications=classifications)
 
-                nonlocal unhandled_scores
                 unhandled_scores = None
                 if failing_scorers_and_exceptions:
                     scorer_errors = {
@@ -1957,20 +1956,22 @@ async def _run_evaluator_internal_impl(
                 # so just capture the stack trace here.
                 exc_info = traceback.format_exc()
 
+            # Run inside the root span so error scores the handler logs land before the span ends.
+            error_scores = {}
+            if evaluator.error_score_handler is not None and unhandled_scores:
+                try:
+                    # Pass a copy so a handler that mutates its argument can't change scorer_names.
+                    error_scores = evaluator.error_score_handler(root_span, datum, list(unhandled_scores)) or {}
+                except Exception as e:
+                    eprint(f"Error score handler failed for scorers: {', '.join(unhandled_scores)}", e)
+
         return EvalResult(
             input=datum.input,
             expected=datum.expected,
             metadata=metadata,
             tags=tags,
             output=output,
-            scores={
-                **(
-                    evaluator.error_score_handler(root_span, datum, unhandled_scores) or {}
-                    if evaluator.error_score_handler is not None and unhandled_scores
-                    else {}
-                ),
-                **scores,
-            },
+            scores={**error_scores, **scores},
             classifications=classifications or None,
             error=error,
             exc_info=exc_info,

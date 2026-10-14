@@ -20,6 +20,7 @@ from .framework import (
     Filter,
     _call_user_fn_args,
     await_or_run,
+    default_error_score_handler,
     evaluate_filter,
     parse_filters,
     run_evaluator,
@@ -1132,6 +1133,92 @@ async def test_per_input_trial_count_with_dict_data():
     assert input_1_trials == [0, 1]
     assert input_2_trials == [0, 1, 2, 3]
     assert input_3_trials == [0]
+
+
+def _error_score_evaluator(inputs, error_score_handler, **kwargs):
+    """Rows named "task_error*" fail in the task; the "picky" scorer fails on "scorer_error" rows."""
+
+    async def task(input_value):
+        if input_value.startswith("task_error"):
+            raise ValueError("task failed")
+        return input_value
+
+    def exact_match(output, expected):
+        return 1.0 if output == expected else 0.0
+
+    def picky(output):
+        if output == "scorer_error":
+            raise ValueError("scorer failed")
+        return 1.0
+
+    return Evaluator(
+        project_name="test-project",
+        eval_name="test-error-score-handler",
+        data=[EvalCase(input=i, expected=i) for i in inputs],
+        task=task,
+        scores=[exact_match, picky],
+        experiment_name=None,
+        metadata=None,
+        max_concurrency=1,
+        error_score_handler=error_score_handler,
+        **kwargs,
+    )
+
+
+@pytest.mark.asyncio
+async def test_error_score_handler_gets_all_scorers_for_each_failed_row():
+    """Each row gets the names of exactly the scorers it is missing, regardless of earlier rows or handler mutations."""
+    seen = []
+
+    def consuming_handler(root_span, data, unhandled_scores):
+        seen.append(list(unhandled_scores))
+        scores = {}
+        while unhandled_scores:
+            scores[unhandled_scores.pop()] = 0
+        return scores
+
+    evaluator = _error_score_evaluator(["scorer_error", "task_error_1", "ok", "task_error_2"], consuming_handler)
+    result = await run_evaluator(experiment=None, evaluator=evaluator, position=None, filters=[])
+
+    assert seen == [["picky"], ["exact_match", "picky"], ["exact_match", "picky"]]
+    assert {r.input: r.scores for r in result.results} == {
+        "scorer_error": {"exact_match": 1.0, "picky": 0},
+        "task_error_1": {"exact_match": 0, "picky": 0},
+        "ok": {"exact_match": 1.0, "picky": 1.0},
+        "task_error_2": {"exact_match": 0, "picky": 0},
+    }
+
+
+@pytest.mark.asyncio
+async def test_error_score_handler_exception_does_not_abort_eval():
+    """An error score handler that raises only loses that row's error scores; the rest of the eval still runs."""
+
+    def broken_handler(root_span, data, unhandled_scores):
+        raise KeyError("handler failed")
+
+    evaluator = _error_score_evaluator(["task_error", "ok"], broken_handler)
+    result = await run_evaluator(experiment=None, evaluator=evaluator, position=None, filters=[])
+
+    results = {r.input: r for r in result.results}
+    assert isinstance(results["task_error"].error, ValueError)
+    assert results["task_error"].scores == {}
+    assert results["ok"].scores == {"exact_match": 1.0, "picky": 1.0}
+
+
+@pytest.mark.asyncio
+async def test_error_score_handler_logs_before_root_span_ends(with_memory_logger, with_simulate_login):
+    """Error scores are logged to the root span before it ends, not as a late write after metrics.end."""
+    evaluator = _error_score_evaluator(["task_error"], default_error_score_handler, summarize_scores=False)
+    experiment = init_test_exp("test-error-score-handler-span-end", "test-project")
+    await run_evaluator(experiment=experiment, evaluator=evaluator, position=None, filters=[])
+
+    # Inspect the raw, unmerged writes so their order is visible.
+    records = [record for item in with_memory_logger.logs if (record := item.get()) is not None]
+    root_records = [record for record in records if not record["span_parents"]]
+    score_index = next(i for i, record in enumerate(root_records) if record.get("scores"))
+    end_index = next(i for i, record in enumerate(root_records) if record.get("metrics", {}).get("end"))
+    assert root_records[score_index]["scores"] == {"exact_match": 0, "picky": 0}
+    assert score_index < end_index
 
 
 @pytest.mark.vcr
