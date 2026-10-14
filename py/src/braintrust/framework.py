@@ -1236,10 +1236,14 @@ class DictEvalHooks(dict[str, Any]):
             self.update({"expected": expected})
         self.update({"trial_index": trial_index})
         self._span = None
-        if tags is not None:
-            self.update({"tags": tags})
-        else:
+        if tags is None:
             self.update({"tags": []})
+        elif isinstance(tags, (list, tuple, set)):
+            # Copy so hook mutations don't leak into the caller's tags.
+            self.update({"tags": list(tags)})
+        else:
+            # Leave other values as-is instead of splitting a string or dict into tags.
+            self.update({"tags": tags})
 
         self._report_progress = report_progress
         self._parameters = parameters
@@ -1756,6 +1760,7 @@ async def _run_evaluator_internal_impl(
             # In most cases this will be a no-op span, but if the parent is set, it will use that ctx.
             root_span = start_span(state=state, **base_event)
 
+        hooks = None
         with root_span:
             try:
 
@@ -1949,7 +1954,10 @@ async def _run_evaluator_internal_impl(
                     root_span.log(metadata=metadata, tags=tags)
             except Exception as e:
                 exc_type, exc_value, tb = sys.exc_info()
-                root_span.log(error=stringify_exception(exc_type, exc_value, tb))
+                if hooks is not None:
+                    # Keep tags the task added before it failed.
+                    tags = hooks.tags if hooks.tags else None
+                root_span.log(error=stringify_exception(exc_type, exc_value, tb), tags=tags)
 
                 error = e
                 # Python3.10 has a different set of arguments to format_exception than earlier versions,
