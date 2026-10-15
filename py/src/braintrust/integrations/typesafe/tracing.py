@@ -12,7 +12,12 @@ from braintrust.integrations.question import (
     _question_span_input,
     _question_span_output,
 )
-from braintrust.integrations.utils import _log_and_end_span, _log_error_and_end_span, _materialize_attachment
+from braintrust.integrations.utils import (
+    _log_and_end_span,
+    _log_error_and_end_span,
+    _materialize_attachment,
+    _try_to_dict,
+)
 from braintrust.logger import start_span as _bt_start_span
 from braintrust.span_types import SpanTypeAttribute
 
@@ -157,7 +162,7 @@ def _token_metrics(response: Any) -> dict[str, int]:
 
 
 def _log_response(span: Any, response: Any, span_input: Any) -> None:
-    answers = getattr(response, "answers", None)
+    answers = _try_to_dict(getattr(response, "answers", None))
     if isinstance(answers, Mapping):
         answers = {identifier: _answer_payload(value) for identifier, value in answers.items()}
     response_model = getattr(response, "model", None)

@@ -8,6 +8,7 @@ from braintrust.integrations.test_utils import assert_metrics_are_valid, verify_
 from braintrust.integrations.typesafe import setup_typesafe, wrap_typesafe
 from braintrust.span_types import SpanTypeAttribute
 from braintrust.test_helpers import init_test_logger
+from pydantic import BaseModel
 from typesafe_sdk import AsyncTypeSafeClient, Choice, Noul, Score, TypeSafeClient, TypeSafeError
 
 
@@ -140,6 +141,17 @@ async def test_typesafe_boxes_and_images(memory_logger, is_async):
     class CustomImage(typesafe_sdk.Image):
         pass
 
+    class CustomAnswers(BaseModel):
+        bounds: typesafe_sdk.BoxAnswer
+        present: typesafe_sdk.NoulAnswer
+        category: typesafe_sdk.ChoiceAnswer
+        size: typesafe_sdk.ScoreAnswer
+
+    class CustomResponse(BaseModel):
+        model: str
+        usage: typesafe_sdk.Usage
+        answers: CustomAnswers
+
     image_file = Path(__file__).parents[2] / "fixtures" / "decision-box.png"
     image = CustomImage(image_file)
     state = {"photos/~": [image], "description": "A test image"}
@@ -159,11 +171,16 @@ async def test_typesafe_boxes_and_images(memory_logger, is_async):
         extra_headers={"TypeSafe-Danger-Zone-Images": "true"},
     )
     if is_async:
+        kwargs["response_model"] = CustomResponse
         async with client:
             response = await client.system_one(**kwargs)
+        assert isinstance(response, CustomResponse)
+        assert isinstance(response.answers, CustomAnswers)
+        response_answers = {identifier: getattr(response.answers, identifier) for identifier in questions}
     else:
         with client:
             response = client.system_one(**kwargs)
+        response_answers = response.answers
 
     spans = memory_logger.pop()
     assert len(spans) == 1
@@ -184,12 +201,12 @@ async def test_typesafe_boxes_and_images(memory_logger, is_async):
     assert answers["bounds"] == {
         "id": "bounds",
         "type": "box",
-        "box": response.answers["bounds"].box.model_dump(),
-        "confidence": response.answers["bounds"].confidence,
+        "box": response_answers["bounds"].box.model_dump(),
+        "confidence": response_answers["bounds"].confidence,
         "image_path": "/state/photos~1~0/0",
     }
-    assert answers["present"]["noul"] == response.answers["present"].noul
-    assert answers["size"]["score"] == response.answers["size"].score
+    assert answers["present"]["noul"] == response_answers["present"].noul
+    assert answers["size"]["score"] == response_answers["size"].score
     assert "scores" not in span
     assert "classifications" not in span
 
