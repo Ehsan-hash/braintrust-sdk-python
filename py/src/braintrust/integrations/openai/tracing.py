@@ -2114,23 +2114,31 @@ def _decisions_input(state: Any, questions: Any) -> dict[str, Any]:
         return {"state": state, "questions": []}
 
 
-def _decisions_output(answers: Any, questions: Any) -> dict[str, Any]:
+def _decisions_output(answers: Any, questions: Any, span_input: Any = None) -> dict[str, Any]:
     try:
         if isinstance(answers, Mapping):
-            return _question_span_output(answers)
+            return _question_span_output(answers, span_input)
         questions = [_try_to_dict(question) for question in questions]
+        identifiers = _decision_question_ids(questions)
+        named_questions = {
+            question["name"]: (identifier, question)
+            for identifier, question in zip(identifiers, questions)
+            if question.get("name") == identifier
+        }
         normalized = []
-        # OpenAI guarantees answer order, including refusals and unnamed questions.
-        # Use the request's IDs so all answers remain linked to their questions.
-        for identifier, question, answer in zip(_decision_question_ids(questions), questions, answers or []):
+        # Named answers identify their question even if reordered. Unnamed
+        # answers use the ordering guaranteed by OpenAI's Decisions API.
+        for identifier, question, answer in zip(identifiers, questions, answers or []):
             answer = _try_to_dict(answer)
             if not isinstance(answer, dict):
                 continue
+            if answer.get("name") in named_questions:
+                identifier, question = named_questions[answer["name"]]
             kind = answer.get("type")
             payload = {"id": identifier, "type": "boolean" if kind == "predicate" else kind}
-            for key in ("probability", "score", "confidence"):
+            for key in ("noul", "probability", "score", "confidence", "box", "image_path"):
                 if key in answer:
-                    payload[key] = answer[key]
+                    payload[key] = _try_to_dict(answer[key]) if key == "box" else answer[key]
             if kind == "choice":
                 keys = _decision_choice_keys(question)
                 if "choice" in answer:
@@ -2147,7 +2155,7 @@ def _decisions_output(answers: Any, questions: Any) -> dict[str, Any]:
                 }
                 payload["legend"] = {str(item["value"]): item["label"] for item in answer["probabilities"]}
             normalized.append(payload)
-        return _question_span_output(normalized)
+        return _question_span_output(normalized, span_input)
     except Exception:
         _log.debug("Failed to normalize Decisions answers", exc_info=True)
         return {"answers": []}
@@ -2184,11 +2192,11 @@ def _decisions_span_params(params: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _log_decisions_response(span: Span, response: Any, questions: Any):
+def _log_decisions_response(span: Span, response: Any, questions: Any, span_input: Any):
     response = _try_to_dict(response)
     if isinstance(response, dict):
         span.log(
-            output=_decisions_output(response.get("answers"), questions or []),
+            output=_decisions_output(response.get("answers"), questions or [], span_input),
             metrics=_parse_metrics_from_usage(response.get("usage")),
         )
 
@@ -2197,25 +2205,27 @@ def _decisions_create_wrapper(wrapped, instance, args, kwargs):
     if _is_async_callable(wrapped):
 
         async def call():
+            params = _decisions_span_params(kwargs)
             with start_span(
                 **merge_dicts(
                     dict(name="openai.decisions.create", span_attributes={"type": SpanTypeAttribute.DECISION}),
-                    _decisions_span_params(kwargs),
+                    params,
                 )
             ) as span:
                 response = await wrapped(*args, **kwargs)
-                _log_decisions_response(span, response, kwargs.get("questions"))
+                _log_decisions_response(span, response, kwargs.get("questions"), params.get("input"))
                 return response
 
         return call()
+    params = _decisions_span_params(kwargs)
     with start_span(
         **merge_dicts(
             dict(name="openai.decisions.create", span_attributes={"type": SpanTypeAttribute.DECISION}),
-            _decisions_span_params(kwargs),
+            params,
         )
     ) as span:
         response = wrapped(*args, **kwargs)
-        _log_decisions_response(span, response, kwargs.get("questions"))
+        _log_decisions_response(span, response, kwargs.get("questions"), params.get("input"))
         return response
 
 

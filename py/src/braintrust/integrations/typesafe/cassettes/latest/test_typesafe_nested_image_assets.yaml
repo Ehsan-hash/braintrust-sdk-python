@@ -1,0 +1,94 @@
+interactions:
+- request:
+    body: !!binary |
+      LS02MjEwOGExNTFmZWU0ZmVhYjNhYzFiYWM5ZGVjNTdjNQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+      Zm9ybS1kYXRhOyBuYW1lPSJyZXF1ZXN0Ig0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9qc29u
+      DQoNCnsic3RhdGUiOnsicGhvdG9zIjpbInBob3RvLXJlZmVyZW5jZSIsInBob3RvLXJlZmVyZW5j
+      ZSJdfSwibW9kZWwiOiJqZXYtMS4xNC4wIiwicXVlc3Rpb25zIjp7InBob3RvLXJlZmVyZW5jZSI6
+      eyJ0eXBlIjoiYm94IiwiaW5zdHJ1Y3Rpb25zIjp7ImltYWdlIjoicGhvdG8tcmVmZXJlbmNlIiwi
+      dGFyZ2V0IjoiVGhlIGJsYWNrIHNxdWFyZSJ9fSwibWF0Y2giOnsidHlwZSI6ImNob2ljZSIsImlu
+      c3RydWN0aW9ucyI6IkNob29zZSB0aGUgbWF0Y2hpbmcgaW1hZ2UiLCJjcml0ZXJpYSI6eyJzcXVh
+      cmUiOiJwaG90by1yZWZlcmVuY2UiLCJub25lIjpudWxsfX19LCJhc3NldHMiOnsicGhvdG8tcmVm
+      ZXJlbmNlIjp7InR5cGUiOiJpbWFnZSIsInBhcnQiOiJhc3NldC0wIn19fQ0KLS02MjEwOGExNTFm
+      ZWU0ZmVhYjNhYzFiYWM5ZGVjNTdjNQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBu
+      YW1lPSJhc3NldC0wIjsgZmlsZW5hbWU9ImFzc2V0LTAiDQpDb250ZW50LVR5cGU6IGltYWdlL3Bu
+      Zw0KDQqJUE5HDQoaCgAAAA1JSERSAAABGAAAARgIAgAAAAjsftsAAAWHSURBVHic7dOBCQNADAOx
+      33/pdoiaOhhpghgu7wP87LUPgAUeCQI8EgR4JAjwSBDgkSDAI0GAR4IAjwQBHgkCPBIEeCQI8EgQ
+      4JEgwCNBgEeCAI8EAR4JAjwSBHgkCPBIEOCRIMAjQYBHggCPBAEeCQI8EgR4JAjwSBDgkSDAI0GA
+      R4IAjwQBHgkCPBIEeCQI8EgQ4JEgwCNBgEeCAI8EAR4JAjwSBHgkCPBIEOCRIMAjQYBHggCPBAEe
+      CQI8EgR4JAjwSBDgkSDAI0GAR4IAjwQBHgkCPBIEeCQI8EgQ4JEgwCNBgEeCAI8EAR4JAjwSBHgk
+      CPBIEDD4SI/z2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5r
+      N5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3
+      OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz
+      2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3k
+      LU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7i
+      vHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYj
+      eYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuT
+      OK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/d
+      SN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7i
+      JM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5r
+      N5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3
+      OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz
+      2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3k
+      LU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7i
+      vHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYj
+      eYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuT
+      OK/dSN7iJM5rN5K3OInz2o3kLU7ivHYjeYuTOK/dSN7iJM5rN5I3OAn+zyNBgEeCAI8EAR4JAjwS
+      BHgkCPBIEOCRIMAjQYBHggCPBAEeCQI8EgR4JAjwSBDgkSDAI0GAR4IAjwQBHgkCPBIEeCQI8EgQ
+      4JEgwCNBgEeCAI8EAR4JAjwSBHgkCPBIEOCRIMAjQYBHggCPBAEeCQI8EgR4JAjwSBDgkSDAI0GA
+      R4IAjwQBHgkCPBIEeCQI8EgQ4JEgwCNBgEeCAI8EAR4JAjwSBHgkCPBIEOCRIMAjQYBHggCPBAEe
+      CQI8EgR4JAjwSBDgkSDAI0GAR4IAjwQBHgkCPBIEfAFb2IcjR+brDgAAAABJRU5ErkJggg0KLS02
+      MjEwOGExNTFmZWU0ZmVhYjNhYzFiYWM5ZGVjNTdjNS0tDQo=
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '2144'
+      content-type:
+      - multipart/form-data; boundary=62108a151fee4feab3ac1bac9dec57c5
+      host:
+      - api.typesafe.ai
+      typesafe-danger-zone-images:
+      - 'true'
+      user-agent:
+      - typesafe-sdk/0.7.5
+      x-typesafe-runtime:
+      - python/3.14.7 (darwin; arm64)
+      x-typesafe-sdk:
+      - typesafe-sdk/0.7.5
+    method: POST
+    uri: https://api.typesafe.ai/v1/systemone
+  response:
+    body:
+      string: '{"model":"jev-1.14.0","answers":{"photo-reference":{"type":"box","box":{"top":0.05,"bottom":0.98,"left":0.13,"right":0.75},"confidence":0.19},"match":{"type":"choice","choice":"square","confidence":0.86,"probabilities":{"square":0.93,"none":0.07}}},"usage":{"input_tokens":1147,"output_tokens":48}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a4b0baf1182baeb6-YYZ
+      connection:
+      - keep-alive
+      content-length:
+      - '298'
+      content-type:
+      - application/json
+      date:
+      - Thu, 15 Oct 2026 18:01:38 GMT
+      server:
+      - cloudflare
+      transfer-encoding:
+      - chunked
+      x-envoy-upstream-service-time:
+      - '66'
+      x-typesafe-request-id:
+      - req_01a140ba12c97099a03a30bf5a415906
+    status:
+      code: 200
+      message: OK
+version: 1
