@@ -116,6 +116,7 @@ def _span_input(state: Any, questions: Any, assets: Mapping[str, Any]) -> dict[s
     if isinstance(questions, Mapping):
         questions = {identifier: _question_payload(value) for identifier, value in questions.items()}
     references = [re.escape(key) for key in assets if isinstance(key, str) and key]
+    references.sort(key=len, reverse=True)
     pattern = re.compile("(" + "|".join(references) + ")") if references else None
     captured_images: dict[int, Any] = {}
 

@@ -32,14 +32,16 @@ _log = logging.getLogger(__name__)
 
 def _decision_media(value: Any, media_transform: Callable[[Any], Any] | None = None) -> Any:
     """Replace inline media in the logged payload without changing request values."""
+    if isinstance(value, Mapping) and value.get("type") in _ATTACHMENT_TYPES:
+        return value
+    if media_transform is not None:
+        transformed = media_transform(value)
+        if transformed is not value:
+            return transformed
     if isinstance(value, Mapping):
-        if value.get("type") in _ATTACHMENT_TYPES:
-            return value
         return {key: _decision_media(item, media_transform) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [_decision_media(item, media_transform) for item in value]
-    if media_transform is not None:
-        value = media_transform(value)
     if isinstance(value, str) and value.startswith("data:"):
         resolved = _materialize_attachment(value)
         if resolved is not None:

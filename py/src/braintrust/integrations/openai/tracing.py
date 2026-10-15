@@ -2125,15 +2125,27 @@ def _decisions_output(answers: Any, questions: Any, span_input: Any = None) -> d
             for identifier, question in zip(identifiers, questions)
             if question.get("name") == identifier
         }
+        answers = [_try_to_dict(answer) for answer in answers or []]
+        named_answer_ids = {
+            answer["name"] for answer in answers if isinstance(answer, dict) and answer.get("name") in named_questions
+        }
+        remaining_questions = iter(
+            (identifier, question)
+            for identifier, question in zip(identifiers, questions)
+            if identifier not in named_answer_ids
+        )
         normalized = []
-        # Named answers identify their question even if reordered. Unnamed
-        # answers use the ordering guaranteed by OpenAI's Decisions API.
-        for identifier, question, answer in zip(identifiers, questions, answers or []):
-            answer = _try_to_dict(answer)
+        # Reserve named matches before pairing the remaining answers and
+        # questions in order, so reordering cannot duplicate a question ID.
+        for answer in answers:
             if not isinstance(answer, dict):
                 continue
-            if answer.get("name") in named_questions:
-                identifier, question = named_questions[answer["name"]]
+            match = named_questions.pop(answer.get("name"), None)
+            if match is None:
+                match = next(remaining_questions, None)
+            if match is None:
+                continue
+            identifier, question = match
             kind = answer.get("type")
             payload = {"id": identifier, "type": "boolean" if kind == "predicate" else kind}
             for key in ("noul", "probability", "score", "confidence", "box", "image_path"):

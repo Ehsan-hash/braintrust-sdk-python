@@ -7,6 +7,7 @@ from braintrust.integrations.litellm.tracing import _parse_metrics_from_usage as
 from braintrust.integrations.openai.tracing import _decisions_input, _decisions_output
 from braintrust.integrations.openai.tracing import _parse_metrics_from_usage as parse_openai_usage
 from braintrust.integrations.question import _question_span_input
+from braintrust.integrations.typesafe.tracing import _image_payload
 from braintrust.test_helpers import assert_dict_matches
 
 
@@ -223,18 +224,19 @@ def test_decisions_system_one_maps_match_typesafe_structure():
     }
 
 
-def test_decisions_named_answers_match_questions_when_reordered():
+@pytest.mark.parametrize("name", ["present", None], ids=["named", "unnamed"])
+def test_decisions_named_answers_match_questions_when_reordered(name):
     questions = [
         {"type": "box", "name": "bounds", "instructions": "The target"},
-        {"type": "predicate", "name": "present", "instructions": "Is it present?"},
+        {"type": "predicate", "instructions": "Is it present?", **({"name": name} if name else {})},
     ]
     box = {"top": -0.1, "bottom": 0, "left": 0.8, "right": 0.2}
     assert _decisions_output(
-        [{"type": "predicate", "name": "present", "probability": 0.01}, {"type": "box", "name": "bounds", "box": box}],
+        [{"type": "predicate", "name": name, "probability": 0.01}, {"type": "box", "name": "bounds", "box": box}],
         questions,
     ) == {
         "answers": [
-            {"id": "present", "type": "boolean", "probability": 0.01},
+            {"id": name or "question_1", "type": "boolean", "probability": 0.01},
             {"id": "bounds", "type": "box", "box": box},
         ]
     }
@@ -250,6 +252,21 @@ def test_decisions_nested_media_and_existing_references():
     assert isinstance(span_input["questions"][0]["instructions"]["image"], Attachment)
     assert span_input["state"]["remote"] == "https://example.com/a.png"
     assert questions["bounds"]["instructions"]["image"] == image
+
+
+def test_decisions_media_transform_handles_serialized_images():
+    data_url = decisions_image_input()[0]["content"][1]["image_url"]
+    image = {"type": "image", "format": "png", "data_base64": data_url.split(",", 1)[1]}
+    questions = {"bounds": {"type": "box", "instructions": "The target"}}
+    span_input = _question_span_input({"photo": image}, questions, media_transform=_image_payload)
+    attachment = span_input["state"]["photo"]
+    assert isinstance(attachment, Attachment)
+    assert attachment.data == base64.b64decode(image["data_base64"])
+    box = {"top": 0, "bottom": 1, "left": 0, "right": 1}
+    assert _decisions_output({"bounds": {"type": "box", "box": box}}, questions, span_input) == {
+        "answers": [{"id": "bounds", "type": "box", "box": box, "image_path": "/state/photo"}]
+    }
+    assert image["data_base64"] == data_url.split(",", 1)[1]
 
 
 def test_decisions_media_failure_keeps_entire_payload(monkeypatch):

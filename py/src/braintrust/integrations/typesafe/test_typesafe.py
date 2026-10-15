@@ -218,10 +218,10 @@ def test_typesafe_nested_image_assets(memory_logger):
 
     image_file = Path(__file__).parents[2] / "fixtures" / "decision-box.png"
     image = typesafe_sdk.Image(image_file)
-    state = {"photos": ["photo-reference", "photo-reference"]}
+    state = {"photos": ["image", "inspect image_2"]}
     questions = {
         # IDs are text, even when they happen to match an asset reference.
-        "photo-reference": typesafe_sdk.Box(instructions={"image": image, "target": "The black square"}),
+        "image_2": typesafe_sdk.Box(instructions={"image": image, "target": "The black square"}),
         "match": Choice(instructions="Choose the matching image", criteria={"square": image, "none": None}),
     }
     assert setup_typesafe()
@@ -230,7 +230,7 @@ def test_typesafe_nested_image_assets(memory_logger):
             model="jev-1.14.0",
             state=state,
             questions=questions,
-            assets={"photo-reference": image},
+            assets={"image": image, "image_2": image},
             extra_headers={"TypeSafe-Danger-Zone-Images": "true"},
         )
 
@@ -239,16 +239,19 @@ def test_typesafe_nested_image_assets(memory_logger):
     span = spans[0]
     _assert_span(span, question_ids=list(questions))
     captured = span["input"]
+    photos = captured["state"]["photos"]
+    assert photos[1] == ["inspect ", photos[0]]
     images = [
-        *captured["state"]["photos"],
+        photos[0],
+        photos[1][1],
         captured["questions"][0]["instructions"]["image"],
         captured["questions"][1]["criteria"]["square"],
     ]
     assert all(isinstance(item, Attachment) and item.data == image_file.read_bytes() for item in images)
     answers = {answer["id"]: answer for answer in span["output"]["answers"]}
-    assert answers["photo-reference"]["box"] == response.answers["photo-reference"].box.model_dump()
+    assert answers["image_2"]["box"] == response.answers["image_2"].box.model_dump()
     # Multiple image occurrences have no structured selector in TypeSafe;
     # instruction text must not be used to guess their association.
-    assert "image_path" not in answers["photo-reference"]
-    assert state == {"photos": ["photo-reference", "photo-reference"]}
-    assert questions["photo-reference"].instructions == {"image": image, "target": "The black square"}
+    assert "image_path" not in answers["image_2"]
+    assert state == {"photos": ["image", "inspect image_2"]}
+    assert questions["image_2"].instructions == {"image": image, "target": "The black square"}
