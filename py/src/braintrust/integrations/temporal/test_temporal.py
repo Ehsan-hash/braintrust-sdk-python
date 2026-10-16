@@ -275,7 +275,7 @@ class TestAutoInstrumentation:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def temporal_env():
+async def temporal_env(request):
     """Create a Temporal test environment.
 
     If ``BRAINTRUST_TEMPORAL_TEST_SERVER_DIR`` is set, point the SDK's binary
@@ -285,26 +285,19 @@ async def temporal_env():
     limits CI runners). When the var is unset (the local default), the SDK
     falls back to its built-in temp-dir download behavior.
     """
+    local_server = getattr(request, "param", None) == "local"
     kwargs: dict[str, Any] = {}
     cache_dir = os.environ.get("BRAINTRUST_TEMPORAL_TEST_SERVER_DIR")
     if cache_dir:
         os.makedirs(cache_dir, exist_ok=True)
         kwargs["download_dest_dir"] = cache_dir
-        kwargs["test_server_download_ttl"] = timedelta(days=365)
-    async with await temporalio.testing.WorkflowEnvironment.start_time_skipping(**kwargs) as env:
-        yield env
-
-
-@pytest_asyncio.fixture
-async def temporal_local_env():
-    """Create a full local Temporal server for capabilities absent from the test server."""
-    kwargs: dict[str, Any] = {}
-    cache_dir = os.environ.get("BRAINTRUST_TEMPORAL_TEST_SERVER_DIR")
-    if cache_dir:
-        os.makedirs(cache_dir, exist_ok=True)
-        kwargs["download_dest_dir"] = cache_dir
-        kwargs["dev_server_download_ttl"] = timedelta(days=365)
-    async with await temporalio.testing.WorkflowEnvironment.start_local(**kwargs) as env:
+        kwargs["dev_server_download_ttl" if local_server else "test_server_download_ttl"] = timedelta(days=365)
+    start_environment = (
+        temporalio.testing.WorkflowEnvironment.start_local
+        if local_server
+        else temporalio.testing.WorkflowEnvironment.start_time_skipping
+    )
+    async with await start_environment(**kwargs) as env:
         yield env
 
 
@@ -403,21 +396,20 @@ class TestBraintrustPluginIntegration:
         "original_execution_run_id" not in temporalio.workflow.Info.__annotations__,
         reason="Temporal version does not expose original_execution_run_id",
     )
+    @pytest.mark.parametrize("temporal_env", ["local"], indirect=True)
     @pytest.mark.asyncio
-    async def test_plugin_workflow_metadata_preserves_original_run_id_after_reset(
-        self, temporal_local_env, memory_logger
-    ):
+    async def test_plugin_workflow_metadata_preserves_original_run_id_after_reset(self, temporal_env, memory_logger):
         task_queue = f"test-queue-reset-{uuid.uuid4()}"
         workflow_id = f"test-workflow-reset-{uuid.uuid4()}"
         async with Worker(
-            temporal_local_env.client,
+            temporal_env.client,
             task_queue=task_queue,
             workflows=[ReplayAfterSignalWorkflow],
             activities=[simple_activity],
             max_cached_workflows=0,
             plugins=[BraintrustPlugin(logger=memory_logger)],
         ):
-            handle = await temporal_local_env.client.start_workflow(
+            handle = await temporal_env.client.start_workflow(
                 ReplayAfterSignalWorkflow.run,
                 TaskInput(value=10),
                 id=workflow_id,
@@ -431,9 +423,9 @@ class TestBraintrustPluginIntegration:
                 for event in history.events
                 if event.event_type == temporalio.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
             )
-            await temporal_local_env.client.service_client.workflow_service.reset_workflow_execution(
+            await temporal_env.client.service_client.workflow_service.reset_workflow_execution(
                 temporalio.api.workflowservice.v1.ResetWorkflowExecutionRequest(
-                    namespace=temporal_local_env.client.namespace,
+                    namespace=temporal_env.client.namespace,
                     workflow_execution=temporalio.api.common.v1.WorkflowExecution(
                         workflow_id=workflow_id,
                         run_id=original_run_id,
@@ -444,7 +436,7 @@ class TestBraintrustPluginIntegration:
                     identity="braintrust-reset-test",
                 )
             )
-            reset_handle = temporal_local_env.client.get_workflow_handle(workflow_id)
+            reset_handle = temporal_env.client.get_workflow_handle(workflow_id)
             await _wait_for_workflow_state(reset_handle, "waiting")
             reset_run_id = (await reset_handle.describe()).run_id
             await reset_handle.signal(ReplayAfterSignalWorkflow.continue_workflow)
